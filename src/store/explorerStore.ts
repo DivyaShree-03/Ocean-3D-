@@ -30,7 +30,7 @@ export const useExplorerStore = create<ExtendedExplorerState>((set) => ({
   currentDensity: 'medium',
 
   // Selected Instrument & Playback
-  selectedInstrumentId: '2902345',
+  selectedInstrumentId: null,
   isPlaying: false,
   playbackSpeed: 1,
 

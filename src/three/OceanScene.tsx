@@ -1,7 +1,6 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { generateDemoOceanVolume } from '../data/demoOcean';
 import { OceanVolumeLayer } from './OceanVolumeLayer';
@@ -11,15 +10,23 @@ import { ArgoLayer } from './ArgoLayer';
 import { GliderLayer } from './GliderLayer';
 import { useExplorerStore } from '../store/explorerStore';
 import { SCENE_BOUNDS } from '../utils/geoToScene';
+import type { ArgoMarker } from '../services/argoService';
 
-export const OceanSceneContent: React.FC = () => {
+interface OceanSceneProps {
+  resetKey?: number;
+  argoMarkers?: ArgoMarker[];
+  onSelectArgo?: (id: string) => void;
+}
+
+export const OceanSceneContent: React.FC<{
+  argoMarkers?: ArgoMarker[];
+  onSelectArgo?: (id: string) => void;
+}> = ({ argoMarkers, onSelectArgo }) => {
   const opacity = useExplorerStore((state) => state.opacity);
   const verticalExaggeration = useExplorerStore((state) => state.verticalExaggeration);
   const depthMin = useExplorerStore((state) => state.depthMin);
   const depthMax = useExplorerStore((state) => state.depthMax);
   const setDepthScreenRange = useExplorerStore((state) => state.setDepthScreenRange);
-
-  const controlsRef = useRef<OrbitControlsImpl>(null);
 
   // Generate 3D volume dataset once
   const volumeData = useMemo(() => generateDemoOceanVolume(), []);
@@ -65,20 +72,16 @@ export const OceanSceneContent: React.FC = () => {
       {/* Surface Current Trajectory Layer */}
       <CurrentLayer />
 
-      {/* Argo Float Layer */}
-      <ArgoLayer />
+      {/* Real Argo Float Layer */}
+      <ArgoLayer observations={argoMarkers} onSelect={onSelectArgo} />
 
       {/* Underwater Glider Layer */}
       <GliderLayer />
 
       {/* Camera OrbitControls */}
       <OrbitControls
-        ref={controlsRef}
-        enableDamping
-        dampingFactor={0.05}
-        enablePan={false}
-        minDistance={11}
-        maxDistance={28}
+        minDistance={3.5}
+        maxDistance={20}
         minPolarAngle={Math.PI / 6}
         maxPolarAngle={Math.PI / 2.15}
         target={[0.2, -1.8, -0.8]}
@@ -87,19 +90,19 @@ export const OceanSceneContent: React.FC = () => {
   );
 };
 
-export const OceanScene: React.FC<{ resetKey?: number }> = ({ resetKey }) => {
+export const OceanScene: React.FC<OceanSceneProps> = ({ resetKey, argoMarkers, onSelectArgo }) => {
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#0B1D33]">
       <Canvas
         key={resetKey}
-        camera={{ position: [0.5, 14.8, 19.5], fov: 38 }}
+        camera={{ position: [0.32, 8.82, 2.18], fov: 38 }}
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
         }}
       >
-        <OceanSceneContent />
+        <OceanSceneContent argoMarkers={argoMarkers} onSelectArgo={onSelectArgo} />
       </Canvas>
     </div>
   );
