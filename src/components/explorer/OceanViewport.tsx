@@ -193,19 +193,19 @@ export const OceanViewport: React.FC = () => {
       />
 
       {/* Top-Right Stack: Collapsible Visualization Controls + Light Selected Instrument Card */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col space-y-3 w-80 items-end">
+      <div className="absolute top-4 right-4 z-[100] flex flex-col space-y-3 w-80 items-end">
         {/* Visualization Controls Panel */}
         {!isControlsExpanded ? (
           <button
             onClick={() => setIsControlsExpanded(true)}
-            className="bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl px-4 py-2.5 shadow-md flex items-center space-x-2 hover:bg-slate-50 transition-colors cursor-pointer text-xs font-bold"
+            className="relative z-[100] bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl px-4 py-2.5 shadow-md flex items-center space-x-2 hover:bg-slate-50 transition-colors cursor-pointer text-xs font-bold"
           >
             <Sliders className="w-4 h-4 text-[#1479F6]" />
             <span>Visualization Controls</span>
             <ChevronDown className="w-4 h-4 text-[#64748B]" />
           </button>
         ) : (
-          <div className="bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl p-4 shadow-xl w-80 animate-fadeIn">
+          <div className="relative z-[100] bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl p-4 shadow-xl w-80 animate-fadeIn">
             <div
               onClick={() => setIsControlsExpanded(false)}
               className="flex items-center justify-between border-b border-[#D7E1EA] pb-2.5 mb-3 cursor-pointer select-none"
@@ -337,7 +337,7 @@ export const OceanViewport: React.FC = () => {
         {/* Selected Instrument Card (Light Theme) */}
         {(selectedObs || selectedInstrumentLoading || selectedInstrumentError) && (
           !isInstrumentExpanded ? (
-            <div className="bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl px-4 py-2.5 shadow-md flex items-center justify-between w-80 animate-fadeIn select-none">
+            <div className="relative z-[100] bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl px-4 py-2.5 shadow-md flex items-center justify-between w-80 animate-fadeIn select-none">
               <button
                 onClick={() => setIsInstrumentExpanded(true)}
                 className="flex items-center space-x-2 cursor-pointer flex-1 text-left font-bold"
@@ -364,7 +364,7 @@ export const OceanViewport: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl p-4 shadow-xl w-80 animate-fadeIn">
+            <div className="relative z-[100] bg-white/95 backdrop-blur border border-[#D7E1EA] text-[#152235] rounded-xl p-4 shadow-xl w-80 animate-fadeIn">
               <div className="flex items-center justify-between border-b border-[#D7E1EA] pb-2 mb-2.5">
                 <div
                   onClick={() => setIsInstrumentExpanded(false)}
