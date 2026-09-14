@@ -20,6 +20,8 @@ interface OceanSceneProps {
   uField?: ModelField | null;
   vField?: ModelField | null;
   variable?: ScalarVariable;
+  selectedDepth?: number;
+  verticalExaggeration?: number;
 }
 
 export const OceanSceneContent: React.FC<{
@@ -29,10 +31,23 @@ export const OceanSceneContent: React.FC<{
   uField?: ModelField | null;
   vField?: ModelField | null;
   variable?: ScalarVariable;
-}> = ({ argoMarkers, onSelectArgo, scalarField, uField, vField, variable = 'thetao' }) => {
+  selectedDepth?: number;
+  verticalExaggeration?: number;
+}> = ({
+  argoMarkers,
+  onSelectArgo,
+  scalarField,
+  uField,
+  vField,
+  variable = 'thetao',
+  selectedDepth = 0,
+  verticalExaggeration: customExaggeration,
+}) => {
   const opacity = useExplorerStore((state) => state.opacity);
-  const verticalExaggeration = useExplorerStore((state) => state.verticalExaggeration);
+  const storeExaggeration = useExplorerStore((state) => state.verticalExaggeration);
   const setDepthScreenRange = useExplorerStore((state) => state.setDepthScreenRange);
+
+  const verticalExaggeration = customExaggeration ?? storeExaggeration;
 
   // Compute volume scale dimensions
   const scaleX = SCENE_BOUNDS.VOLUME_SIZE.x;
@@ -63,28 +78,24 @@ export const OceanSceneContent: React.FC<{
       {/* 3D Geographic Land Layer */}
       <GeographicLandLayer />
 
-      {/* TEMPORARILY DISABLED WHILE TESTING LIVE FIELD */}
-      {/*
-      <OceanVolumeLayer
-        volume={volumeData}
-        opacity={opacity}
-        verticalExaggeration={verticalExaggeration}
-        depthMin={depthMin}
-        depthMax={depthMax}
-      />
-      */}
-
-      {/* Live Model Field Layer (Temperature / Salinity 2D Slice) */}
+      {/* Live Model Field Layer (Temperature / Salinity 2D Slice positioned at 3D physical selectedDepth) */}
       <ModelFieldLayer
         field={scalarField ?? null}
         variable={variable}
         opacity={opacity}
+        selectedDepth={selectedDepth}
+        verticalExaggeration={verticalExaggeration}
       />
 
-      {/* Surface Current Trajectory Layer (Live uo/vo vectors when available) */}
-      <CurrentLayer uField={uField} vField={vField} />
+      {/* Surface/Depth Current Trajectory Layer (Positioned at 3D physical selectedDepth) */}
+      <CurrentLayer
+        uField={uField}
+        vField={vField}
+        selectedDepth={selectedDepth}
+        verticalExaggeration={verticalExaggeration}
+      />
 
-      {/* Real Argo Float Layer */}
+      {/* Real Argo Float Layer (surface floats) */}
       <ArgoLayer observations={argoMarkers} onSelect={onSelectArgo} />
 
       {/* Underwater Glider Layer */}
@@ -110,6 +121,8 @@ export const OceanScene: React.FC<OceanSceneProps> = ({
   uField,
   vField,
   variable,
+  selectedDepth,
+  verticalExaggeration,
 }) => {
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#0B1D33]">
@@ -129,6 +142,8 @@ export const OceanScene: React.FC<OceanSceneProps> = ({
           uField={uField}
           vField={vField}
           variable={variable}
+          selectedDepth={selectedDepth}
+          verticalExaggeration={verticalExaggeration}
         />
       </Canvas>
     </div>

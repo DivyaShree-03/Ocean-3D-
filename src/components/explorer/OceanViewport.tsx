@@ -227,6 +227,8 @@ export const OceanViewport: React.FC = () => {
         uField={uField}
         vField={vField}
         variable={variable}
+        selectedDepth={scalarField?.selectedDepth ?? depth ?? 0}
+        verticalExaggeration={verticalExaggeration}
       />
 
       {/* Dynamic Field Legend at Bottom Center */}

@@ -18,9 +18,16 @@ interface Particle {
 interface CurrentLayerProps {
   uField?: ModelField | null;
   vField?: ModelField | null;
+  selectedDepth?: number;
+  verticalExaggeration?: number;
 }
 
-export const CurrentLayer: React.FC<CurrentLayerProps> = ({ uField, vField }) => {
+export const CurrentLayer: React.FC<CurrentLayerProps> = ({
+  uField,
+  vField,
+  selectedDepth = 0,
+  verticalExaggeration = 2.0,
+}) => {
   const currentDensity = useExplorerStore((state) => state.currentDensity);
   const showCurrents = useExplorerStore((state) => state.showCurrents);
 
@@ -202,7 +209,7 @@ export const CurrentLayer: React.FC<CurrentLayerProps> = ({ uField, vField }) =>
 
     const hasRealModel = Boolean(uField && vField && uField.values.length && vField.values.length);
 
-    const CURRENT_SURFACE_OFFSET = 0.055;
+    const CURRENT_SURFACE_OFFSET = 0.04;
 
     for (let i = 0; i < numParticles; i++) {
       const p = particles[i];
@@ -245,11 +252,11 @@ export const CurrentLayer: React.FC<CurrentLayerProps> = ({ uField, vField }) =>
       const tailLon = p.lon - du * trailLengthDeg;
       const tailLat = p.lat - dv * trailLengthDeg;
 
-      // Map tail & head to 3D scene coordinates (using 0 actualDepth so Y=0 baseline, plus CURRENT_SURFACE_OFFSET)
-      const [tailX, tailY, tailZ] = geoToScene(tailLon, tailLat, 0, 1.0);
-      const [headX, headY, headZ] = geoToScene(p.lon, p.lat, 0, 1.0);
+      // Map tail & head to 3D scene coordinates at physical selectedDepth
+      const [tailX, tailY, tailZ] = geoToScene(tailLon, tailLat, selectedDepth, verticalExaggeration);
+      const [headX, headY, headZ] = geoToScene(p.lon, p.lat, selectedDepth, verticalExaggeration);
 
-      // Line Segment: Tail -> Head at Y offset +0.055 above ocean surface
+      // Line Segment: Tail -> Head at Y offset +0.04 above current slice level
       posArray[i * 6 + 0] = tailX;
       posArray[i * 6 + 1] = tailY + CURRENT_SURFACE_OFFSET;
       posArray[i * 6 + 2] = tailZ;
@@ -258,7 +265,7 @@ export const CurrentLayer: React.FC<CurrentLayerProps> = ({ uField, vField }) =>
       posArray[i * 6 + 4] = headY + CURRENT_SURFACE_OFFSET;
       posArray[i * 6 + 5] = headZ;
 
-      // Head Point: slightly elevated leading dot at Y offset +0.056
+      // Head Point: leading dot at Y offset +0.041
       headPosArray[i * 3 + 0] = headX;
       headPosArray[i * 3 + 1] = headY + CURRENT_SURFACE_OFFSET + 0.001;
       headPosArray[i * 3 + 2] = headZ;

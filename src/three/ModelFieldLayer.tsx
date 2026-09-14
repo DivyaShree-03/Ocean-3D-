@@ -7,12 +7,16 @@ import { geoToScene } from '../utils/geoToScene';
 interface Props {
   field: ModelField | null;
   variable: ScalarVariable;
+  selectedDepth?: number;
+  verticalExaggeration?: number;
   opacity?: number;
 }
 
 export default function ModelFieldLayer({
   field,
   variable,
+  selectedDepth = 0,
+  verticalExaggeration = 2.0,
   opacity = 0.92,
 }: Props) {
   const geometry = useMemo(() => {
@@ -40,8 +44,8 @@ export default function ModelFieldLayer({
     const stride = 2;
 
     const addVertex = (lon: number, lat: number, value: number) => {
-      const [x, y, z] = geoToScene(lon, lat, 0, 1);
-      const yOffset = y + 0.015; // Tiny offset above ocean
+      const [x, y, z] = geoToScene(lon, lat, selectedDepth, verticalExaggeration);
+      const yOffset = y + 0.015; // Tiny offset above slice level
 
       positions.push(x, yOffset, z);
 
@@ -101,7 +105,7 @@ export default function ModelFieldLayer({
     geo.computeBoundingSphere();
 
     return geo;
-  }, [field, variable]);
+  }, [field, variable, selectedDepth, verticalExaggeration]);
 
   if (!geometry) return null;
 
