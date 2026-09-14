@@ -5,6 +5,8 @@ import { sampleCurrentField } from '../data/demoCurrents';
 import { geoToScene, SCENE_BOUNDS } from '../utils/geoToScene';
 import { regionalLandData } from '../data/geography/regionalLand';
 import { useExplorerStore } from '../store/explorerStore';
+import type { ModelField } from '../services/modelService';
+import { sampleModelCurrentVector } from '../utils/modelCurrents';
 
 interface Particle {
   lon: number;
@@ -13,11 +15,16 @@ interface Particle {
   maxAge: number;
 }
 
-export const CurrentLayer: React.FC = () => {
+interface CurrentLayerProps {
+  uField?: ModelField | null;
+  vField?: ModelField | null;
+}
+
+export const CurrentLayer: React.FC<CurrentLayerProps> = ({ uField, vField }) => {
   const currentDensity = useExplorerStore((state) => state.currentDensity);
   const showCurrents = useExplorerStore((state) => state.showCurrents);
 
-  // Determine particle count based on density setting (Phase 3B: Low 400, Medium 800, High 1400)
+  // Determine particle count based on density setting
   const numParticles = useMemo(() => {
     switch (currentDensity) {
       case 'low': return 400;
@@ -106,7 +113,7 @@ export const CurrentLayer: React.FC = () => {
     return [85.0, 12.0];
   };
 
-  // 2. Custom Shader Material for circular small particle heads (eliminates square point artifacts)
+  // 2. Custom Shader Material for circular small particle heads
   const headMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: /* glsl */ `
@@ -115,7 +122,7 @@ export const CurrentLayer: React.FC = () => {
         void main() {
           v_alpha = a_alpha;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = 2.2; // Small 2.2px circular leading head dot
+          gl_PointSize = 2.2;
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -125,12 +132,13 @@ export const CurrentLayer: React.FC = () => {
         void main() {
           vec2 p = gl_PointCoord - vec2(0.5);
           if (length(p) > 0.5) {
-            discard; // Circular point clipping: removes square artifacts
+            discard;
           }
           gl_FragColor = vec4(0.96, 0.99, 1.0, 0.90 * v_alpha);
         }
       `,
       transparent: true,
+      depthTest: true,
       depthWrite: false,
     });
   }, []);
@@ -183,23 +191,29 @@ export const CurrentLayer: React.FC = () => {
     };
   }, [numParticles]);
 
-  // 4. Animation Update Loop (direct GPU Float32Array updates in useFrame)
+  // 4. Animation Update Loop
   useFrame((_, delta) => {
     if (!showCurrents || !lineMeshRef.current) return;
 
     const dt = Math.min(delta, 0.05);
-    const speedScale = 1.2; // Visual speed factor
+    const speedScale = 1.2;
     const posArray = positionAttribute.array as Float32Array;
     const headPosArray = headPosAttribute.array as Float32Array;
+
+    const hasRealModel = Boolean(uField && vField && uField.values.length && vField.values.length);
+
+    const CURRENT_SURFACE_OFFSET = 0.055;
 
     for (let i = 0; i < numParticles; i++) {
       const p = particles[i];
       p.age += dt;
 
-      // Sample vector field
-      const { u, v, speed } = sampleCurrentField(p.lon, p.lat);
+      // Sample vector field: use live uo/vo model field if provided, else demo fallback
+      const { u, v, speed } = hasRealModel
+        ? sampleModelCurrentVector(p.lon, p.lat, uField!, vField!)
+        : sampleCurrentField(p.lon, p.lat);
 
-      // Advect particle head position
+      // Advect particle position
       p.lon += u * 0.70 * speedScale * dt;
       p.lat += v * 0.70 * speedScale * dt;
 
@@ -223,30 +237,30 @@ export const CurrentLayer: React.FC = () => {
         dv = v / speed;
       }
 
-      // Dynamic trail length based on current speed (0.15 to 0.35 scene units equivalent)
+      // Dynamic trail length based on current speed
       const normSpeed = Math.min(1.0, Math.max(0.0, (speed - 0.15) / 1.0));
-      const trailLengthDeg = 0.55 + normSpeed * 0.75; // in lon/lat degrees
+      const trailLengthDeg = 0.55 + normSpeed * 0.75;
 
-      // Tail geographic position: head - direction * trailLength
+      // Tail geographic position
       const tailLon = p.lon - du * trailLengthDeg;
       const tailLat = p.lat - dv * trailLengthDeg;
 
-      // Map tail & head to 3D scene coordinates
-      const [tailX, tailY, tailZ] = geoToScene(tailLon, tailLat, 15, 1.0);
-      const [headX, headY, headZ] = geoToScene(p.lon, p.lat, 15, 1.0);
+      // Map tail & head to 3D scene coordinates (using 0 actualDepth so Y=0 baseline, plus CURRENT_SURFACE_OFFSET)
+      const [tailX, tailY, tailZ] = geoToScene(tailLon, tailLat, 0, 1.0);
+      const [headX, headY, headZ] = geoToScene(p.lon, p.lat, 0, 1.0);
 
-      // Line Segment: Tail -> Head (Y offset +0.005)
+      // Line Segment: Tail -> Head at Y offset +0.055 above ocean surface
       posArray[i * 6 + 0] = tailX;
-      posArray[i * 6 + 1] = tailY + 0.005;
+      posArray[i * 6 + 1] = tailY + CURRENT_SURFACE_OFFSET;
       posArray[i * 6 + 2] = tailZ;
 
       posArray[i * 6 + 3] = headX;
-      posArray[i * 6 + 4] = headY + 0.005;
+      posArray[i * 6 + 4] = headY + CURRENT_SURFACE_OFFSET;
       posArray[i * 6 + 5] = headZ;
 
-      // Head Point: exact head position (Y offset +0.006)
+      // Head Point: slightly elevated leading dot at Y offset +0.056
       headPosArray[i * 3 + 0] = headX;
-      headPosArray[i * 3 + 1] = headY + 0.006;
+      headPosArray[i * 3 + 1] = headY + CURRENT_SURFACE_OFFSET + 0.001;
       headPosArray[i * 3 + 2] = headZ;
     }
 
@@ -258,8 +272,7 @@ export const CurrentLayer: React.FC = () => {
 
   return (
     <group>
-      {/* 1. Directional Trail Line Segments (tail -> head) */}
-      <lineSegments ref={lineMeshRef}>
+      <lineSegments ref={lineMeshRef} renderOrder={20}>
         <bufferGeometry>
           <primitive object={positionAttribute} attach="attributes-position" />
           <primitive object={lineAlphaAttribute} attach="attributes-color" />
@@ -269,12 +282,12 @@ export const CurrentLayer: React.FC = () => {
           transparent
           opacity={0.85}
           linewidth={1.8}
+          depthTest={true}
           depthWrite={false}
         />
       </lineSegments>
 
-      {/* 2. Small Circular Leading Head Dots (gl_PointCoord clipped, zero square artifacts) */}
-      <points ref={pointsMeshRef} material={headMaterial}>
+      <points ref={pointsMeshRef} material={headMaterial} renderOrder={20}>
         <bufferGeometry>
           <primitive object={headPosAttribute} attach="attributes-position" />
           <primitive object={headAlphaAttribute} attach="attributes-a_alpha" />

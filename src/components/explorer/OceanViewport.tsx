@@ -9,6 +9,8 @@ import {
   getArgoProfile,
   type ArgoMarker,
 } from '../../services/argoService';
+import { useOceanModel } from '../../hooks/useOceanModel';
+import FieldLegend from './FieldLegend';
 
 export const OceanViewport: React.FC = () => {
   const opacity = useExplorerStore((state) => state.opacity);
@@ -26,6 +28,22 @@ export const OceanViewport: React.FC = () => {
 
   const selectedInstrumentId = useExplorerStore((state) => state.selectedInstrumentId);
   const setSelectedInstrumentId = useExplorerStore((state) => state.setSelectedInstrumentId);
+
+  // Hook controlling model data (metadata, thetao/so, uo, vo)
+  const {
+    metadata,
+    variable,
+    setVariable,
+    timeIndex,
+    setTimeIndex,
+    depth,
+    setDepth,
+    scalarField,
+    uField,
+    vField,
+    loading,
+    error,
+  } = useOceanModel();
 
   // Live Argo Markers State
   const [argoMarkers, setArgoMarkers] = useState<ArgoMarker[]>([]);
@@ -185,12 +203,34 @@ export const OceanViewport: React.FC = () => {
 
   return (
     <div className="relative w-full h-full min-h-[500px] flex-1 bg-[#0B1D33] overflow-hidden select-none">
+      {/* Loading Indicator Toast */}
+      {loading && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur px-4 py-2 rounded-lg shadow-md border border-[#D7E1EA] text-xs font-semibold text-[#152235] flex items-center space-x-2">
+          <Loader2 className="w-4 h-4 text-[#1479F6] animate-spin" />
+          <span>Loading ocean model data...</span>
+        </div>
+      )}
+
+      {/* Error Indicator Toast */}
+      {error && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-red-50/95 backdrop-blur border border-red-200 px-4 py-2 rounded-lg text-xs font-semibold text-red-700 shadow-md">
+          {error}
+        </div>
+      )}
+
       {/* Primary 3D WebGL Canvas Viewport */}
       <OceanScene
         resetKey={resetKey}
         argoMarkers={argoMarkers}
         onSelectArgo={handleInstrumentSelect}
+        scalarField={scalarField}
+        uField={uField}
+        vField={vField}
+        variable={variable}
       />
+
+      {/* Dynamic Field Legend at Bottom Center */}
+      <FieldLegend field={scalarField} variable={variable} />
 
       {/* Top-Right Stack: Collapsible Visualization Controls + Light Selected Instrument Card */}
       <div className="absolute top-4 right-4 z-[100] flex flex-col space-y-3 w-80 items-end">
@@ -226,6 +266,67 @@ export const OceanViewport: React.FC = () => {
               >
                 <ChevronUp className="w-4 h-4" />
               </button>
+            </div>
+
+            {/* Model Field Options: Variable, Date, Depth */}
+            <div className="space-y-3 mb-4 pb-3 border-b border-[#D7E1EA]">
+              {/* VARIABLE */}
+              <div>
+                <label className="text-[10px] uppercase text-[#64748B] font-semibold block mb-1">
+                  Variable
+                </label>
+                <select
+                  value={variable}
+                  onChange={(e) =>
+                    setVariable(e.target.value as 'thetao' | 'so')
+                  }
+                  className="w-full rounded-lg border border-[#D7E1EA] bg-white px-3 py-2 text-xs text-[#152235] font-semibold focus:outline-none focus:border-[#1479F6]"
+                >
+                  <option value="thetao">Temperature</option>
+                  <option value="so">Salinity</option>
+                </select>
+              </div>
+
+              {/* DATE */}
+              <div>
+                <label className="text-[10px] uppercase text-[#64748B] font-semibold block mb-1">
+                  Date
+                </label>
+                <select
+                  value={timeIndex}
+                  onChange={(e) => setTimeIndex(Number(e.target.value))}
+                  className="w-full rounded-lg border border-[#D7E1EA] bg-white px-3 py-2 text-xs text-[#152235] font-semibold focus:outline-none focus:border-[#1479F6]"
+                >
+                  {metadata?.times.map((time, index) => {
+                    const formattedDate = time.includes('T')
+                      ? time.split('T')[0]
+                      : time;
+                    return (
+                      <option key={`${time}-${index}`} value={index}>
+                        {formattedDate}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* DEPTH */}
+              <div>
+                <label className="text-[10px] uppercase text-[#64748B] font-semibold block mb-1">
+                  Depth
+                </label>
+                <select
+                  value={depth ?? ''}
+                  onChange={(e) => setDepth(Number(e.target.value))}
+                  className="w-full rounded-lg border border-[#D7E1EA] bg-white px-3 py-2 text-xs text-[#152235] font-semibold focus:outline-none focus:border-[#1479F6]"
+                >
+                  {metadata?.depths.map((d) => (
+                    <option key={d} value={d}>
+                      {Number(d).toFixed(1)} m
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Opacity Control */}
@@ -287,7 +388,7 @@ export const OceanViewport: React.FC = () => {
             <div className="pt-3 border-t border-[#D7E1EA]">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-[#152235]">
-                  Surface Currents (Demo)
+                  Surface Currents
                 </span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
