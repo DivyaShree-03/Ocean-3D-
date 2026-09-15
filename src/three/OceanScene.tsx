@@ -173,31 +173,35 @@ export const OceanSceneContent: React.FC<{
         depthMax={depthMax}
       />
 
-      {/* Multi-Depth Stacked Slices (3D Ocean Body Cross-Section) */}
-      {showMultiDepthSlices ? (
+      {/* Neutral depth reference planes */}
+      {showMultiDepthSlices && (
         <MultiDepthSliceLayer
           variable={variable}
           timeStep={demoTimeStep}
           verticalExaggeration={verticalExaggeration}
           opacity={opacity}
+          selectedDepth={scalarField?.selectedDepth ?? selectedDepth}
           visible={true}
         />
-      ) : (
-        /* Single Selected Depth Model Field Layer */
+      )}
+
+      {/* REAL BACKEND / MODEL DATA LAYER */}
+      {scalarField && (
         <ModelFieldLayer
-          field={scalarField ?? null}
+          field={scalarField}
           variable={variable}
           opacity={opacity}
-          selectedDepth={selectedDepth}
+          selectedDepth={scalarField.selectedDepth ?? selectedDepth}
+          depthSliceEnabled={showMultiDepthSlices}
           verticalExaggeration={verticalExaggeration}
         />
       )}
 
-      {/* Surface Current Trajectory Layer (Positioned at selectedDepth) */}
+      {/* Surface Current Trajectory Layer (Positioned at active depth) */}
       <CurrentLayer
         uField={uField}
         vField={vField}
-        selectedDepth={selectedDepth}
+        selectedDepth={scalarField?.selectedDepth ?? selectedDepth}
         verticalExaggeration={verticalExaggeration}
         demoTimeStep={demoTimeStep}
       />

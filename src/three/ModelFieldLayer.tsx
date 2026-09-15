@@ -8,6 +8,7 @@ interface Props {
   field: ModelField | null;
   variable: ScalarVariable;
   selectedDepth?: number;
+  depthSliceEnabled?: boolean;
   verticalExaggeration?: number;
   opacity?: number;
 }
@@ -16,6 +17,7 @@ export default function ModelFieldLayer({
   field,
   variable,
   selectedDepth = 0,
+  depthSliceEnabled = false,
   verticalExaggeration = 2.0,
   opacity = 0.92,
 }: Props) {
@@ -40,9 +42,13 @@ export default function ModelFieldLayer({
 
     const stride = 1;
 
+    // Use absolute selected depth so scalar layer positioning matches active depth slice
+    const visualDepth = depthSliceEnabled ? Math.abs(selectedDepth) : Math.abs(selectedDepth);
+
     const addVertex = (lon: number, lat: number, value: number) => {
-      const [x, y, z] = geoToScene(lon, lat, selectedDepth, verticalExaggeration);
-      const yOffset = y + 0.015;
+      const [x, y, z] = geoToScene(lon, lat, visualDepth, verticalExaggeration);
+      // Small scene-space visual offset (+0.045) keeps temperature field slightly above neutral depth plane
+      const yOffset = y + 0.045;
 
       positions.push(x, yOffset, z);
 
@@ -93,21 +99,22 @@ export default function ModelFieldLayer({
     geo.computeBoundingSphere();
 
     return geo;
-  }, [field, variable, selectedDepth, verticalExaggeration]);
+  }, [field, variable, selectedDepth, depthSliceEnabled, verticalExaggeration]);
 
   if (!geometry) return null;
 
   return (
-    <mesh geometry={geometry} renderOrder={5}>
+    <mesh geometry={geometry} renderOrder={20}>
       <meshBasicMaterial
         vertexColors
         transparent
         opacity={opacity}
         side={THREE.DoubleSide}
-        depthWrite
+        depthTest={true}
+        depthWrite={false}
         polygonOffset
-        polygonOffsetFactor={1}
-        polygonOffsetUnits={1}
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
       />
     </mesh>
   );

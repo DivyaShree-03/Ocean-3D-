@@ -921,15 +921,6 @@ export const OceanViewport: React.FC = () => {
                         <span className="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#E6F4EA] text-[#137333] uppercase tracking-wider">
                           LIVE DATA
                         </span>
-                        {selectedObs.trajectoryMode && (
-                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
-                            selectedObs.trajectoryMode === 'live'
-                              ? 'bg-[#E6F4EA] text-[#137333]'
-                              : 'bg-[#FFF4D6] text-[#946B00]'
-                          }`}>
-                            {selectedObs.trajectoryMode === 'live' ? 'LIVE TRAJECTORY' : 'SIMULATED MOTION'}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>

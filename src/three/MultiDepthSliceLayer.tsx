@@ -8,6 +8,7 @@ interface MultiDepthSliceLayerProps {
   timeStep?: number;
   verticalExaggeration?: number;
   opacity?: number;
+  selectedDepth?: number;
   visible?: boolean;
 }
 
@@ -15,14 +16,12 @@ const DEPTH_LEVELS = [0, 500, 1000, 1500, 2000, 3000, 4000, 5500];
 
 type SingleSliceProps = {
   depth: number;
-  index: number;
   verticalExaggeration: number;
   baseOpacity: number;
 };
 
 const DepthSliceMesh: React.FC<SingleSliceProps> = ({
   depth,
-  index,
   verticalExaggeration,
   baseOpacity,
 }) => {
@@ -73,16 +72,17 @@ const DepthSliceMesh: React.FC<SingleSliceProps> = ({
 
   if (!geometry) return null;
 
-  // Single neutral transparent blue water depth plane opacity
-  const opacity = Math.max(0.06, baseOpacity * 0.14 - index * 0.01);
+  // Subtle neutral depth reference plane opacity (0.06 - 0.08) so real scalar data shines through
+  const opacity = Math.max(0.05, Math.min(0.08, baseOpacity * 0.08));
 
   return (
-    <mesh geometry={geometry} renderOrder={3 + index}>
+    <mesh geometry={geometry} renderOrder={2}>
       <meshBasicMaterial
-        color="#0D5A7A"
+        color="#0B5470"
         transparent
         opacity={opacity}
         side={THREE.DoubleSide}
+        depthTest={true}
         depthWrite={false}
       />
     </mesh>
@@ -92,21 +92,29 @@ const DepthSliceMesh: React.FC<SingleSliceProps> = ({
 export function MultiDepthSliceLayer({
   verticalExaggeration = 2.0,
   opacity = 0.8,
+  selectedDepth = 0,
   visible = true,
 }: MultiDepthSliceLayerProps) {
   if (!visible) return null;
 
   return (
     <group>
-      {DEPTH_LEVELS.map((depth, index) => (
-        <DepthSliceMesh
-          key={depth}
-          depth={depth}
-          index={index}
-          verticalExaggeration={verticalExaggeration}
-          baseOpacity={opacity}
-        />
-      ))}
+      {DEPTH_LEVELS.map((depth) => {
+        // Skip neutral reference slice if it sits within 150m of the active backend data depth
+        const isNearSelectedDepth = Math.abs(depth - selectedDepth) < 150;
+        if (isNearSelectedDepth) {
+          return null;
+        }
+
+        return (
+          <DepthSliceMesh
+            key={depth}
+            depth={depth}
+            verticalExaggeration={verticalExaggeration}
+            baseOpacity={opacity}
+          />
+        );
+      })}
     </group>
   );
 }
