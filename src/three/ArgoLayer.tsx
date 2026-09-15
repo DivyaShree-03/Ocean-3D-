@@ -1,35 +1,28 @@
 import React, { useMemo } from 'react';
 import { useExplorerStore } from '../store/explorerStore';
-import { geoToScene } from '../utils/geoToScene';
 import { isLandCoordinate } from '../geography/landMask';
 import type { ArgoMarker as ArgoMarkerData } from '../services/argoService';
-import { InstrumentMarker } from './InstrumentMarker';
+import type { VisualTrajectoryPoint } from '../types/trajectory';
+import AnimatedArgoMarker from './AnimatedArgoMarker';
 
 interface ArgoLayerProps {
   observations?: ArgoMarkerData[];
   onSelect?: (id: string) => void;
+  argoTrajectories?: Record<string, VisualTrajectoryPoint[]>;
 }
 
-const SingleArgoMarker: React.FC<{
+const SingleArgoMarkerItem: React.FC<{
   argo: ArgoMarkerData;
   onSelect?: (id: string) => void;
   verticalExaggeration: number;
   selectedInstrumentId: string | null;
-}> = ({ argo, onSelect, verticalExaggeration, selectedInstrumentId }) => {
+  trajectory?: VisualTrajectoryPoint[];
+}> = ({ argo, onSelect, verticalExaggeration, selectedInstrumentId, trajectory }) => {
   const setSelectedInstrumentId = useExplorerStore((state) => state.setSelectedInstrumentId);
 
   const isLand = useMemo(() => {
     return isLandCoordinate(argo.longitude, argo.latitude);
   }, [argo.longitude, argo.latitude]);
-
-  const floatPos = useMemo<[number, number, number]>(() => {
-    return geoToScene(
-      argo.longitude,
-      argo.latitude,
-      0,
-      verticalExaggeration
-    );
-  }, [argo.longitude, argo.latitude, verticalExaggeration]);
 
   if (isLand) return null;
 
@@ -42,17 +35,25 @@ const SingleArgoMarker: React.FC<{
   };
 
   return (
-    <InstrumentMarker
+    <AnimatedArgoMarker
       id={argo.id}
-      type="ARGO"
-      position={floatPos}
+      latitude={argo.latitude}
+      longitude={argo.longitude}
+      depth={argo.depth ?? 0}
+      trajectory={trajectory}
+      active={selectedInstrumentId === argo.id}
+      verticalExaggeration={verticalExaggeration}
       selectedInstrumentId={selectedInstrumentId}
       onSelect={handleSelect}
     />
   );
 };
 
-export const ArgoLayer: React.FC<ArgoLayerProps> = ({ observations = [], onSelect }) => {
+export const ArgoLayer: React.FC<ArgoLayerProps> = ({
+  observations = [],
+  onSelect,
+  argoTrajectories = {},
+}) => {
   const showArgo = useExplorerStore((state) => state.showArgo);
   const verticalExaggeration = useExplorerStore((state) => state.verticalExaggeration);
   const selectedInstrumentId = useExplorerStore((state) => state.selectedInstrumentId);
@@ -62,12 +63,13 @@ export const ArgoLayer: React.FC<ArgoLayerProps> = ({ observations = [], onSelec
   return (
     <group>
       {observations.map((argo) => (
-        <SingleArgoMarker
+        <SingleArgoMarkerItem
           key={argo.id}
           argo={argo}
           selectedInstrumentId={selectedInstrumentId}
           onSelect={onSelect}
           verticalExaggeration={verticalExaggeration}
+          trajectory={argoTrajectories[argo.id]}
         />
       ))}
     </group>

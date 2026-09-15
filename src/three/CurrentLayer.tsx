@@ -20,6 +20,7 @@ interface CurrentLayerProps {
   vField?: ModelField | null;
   selectedDepth?: number;
   verticalExaggeration?: number;
+  demoTimeStep?: number;
 }
 
 export const CurrentLayer: React.FC<CurrentLayerProps> = ({
@@ -27,6 +28,7 @@ export const CurrentLayer: React.FC<CurrentLayerProps> = ({
   vField,
   selectedDepth = 0,
   verticalExaggeration = 2.0,
+  demoTimeStep = 0,
 }) => {
   const currentDensity = useExplorerStore((state) => state.currentDensity);
   const showCurrents = useExplorerStore((state) => state.showCurrents);
@@ -218,7 +220,7 @@ export const CurrentLayer: React.FC<CurrentLayerProps> = ({
       // Sample vector field: use live uo/vo model field if provided, else demo fallback
       const { u, v, speed } = hasRealModel
         ? sampleModelCurrentVector(p.lon, p.lat, uField!, vField!)
-        : sampleCurrentField(p.lon, p.lat);
+        : sampleCurrentField(p.lon, p.lat, demoTimeStep);
 
       // Advect particle position
       p.lon += u * 0.70 * speedScale * dt;

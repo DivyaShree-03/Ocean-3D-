@@ -8,28 +8,37 @@ export type InstrumentMarkerProps = {
   onSelect: (id: string) => void;
 };
 
+const ARGO_COLOR = '#38BDF8';
+const GLIDER_COLOR = '#FB923C';
+
 function ArgoMarker({ selected }: { selected: boolean }) {
   return (
     <div
       style={{
         width: 22,
-        height: 22,
-        borderRadius: '50%',
-        background: '#F4C542',
-        border: '2px solid #8A6A00',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: selected
-          ? '0 0 0 4px rgba(244,197,66,0.25), 0 0 12px rgba(244,197,66,0.7)'
-          : '0 2px 6px rgba(0,0,0,0.30)',
+        height: 30,
+        opacity: selected ? 1.0 : 0.65,
+        transition: 'opacity 150ms ease, transform 150ms ease',
+        transform: selected ? 'scale(1.12)' : 'scale(1)',
+        cursor: 'pointer',
+        filter: selected
+          ? 'drop-shadow(0 0 8px rgba(56,189,248,0.8))'
+          : 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))',
       }}
     >
-      <svg width="10" height="14" viewBox="0 0 30 60">
-        <line x1="15" y1="3" x2="15" y2="14" stroke="#152235" strokeWidth="3" />
-        <rect x="9" y="14" width="12" height="13" rx="2" fill="#FFF3A5" />
-        <rect x="10" y="27" width="10" height="21" fill="#152235" />
-        <polygon points="10,48 20,48 15,57" fill="#64748B" />
+      <svg width="100%" height="100%" viewBox="0 0 30 60">
+        <line
+          x1="15"
+          y1="4"
+          x2="15"
+          y2="14"
+          stroke={ARGO_COLOR}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+        />
+        <rect x="9" y="14" width="12" height="13" rx="2" fill={ARGO_COLOR} />
+        <rect x="10" y="28" width="10" height="20" rx="2" fill={ARGO_COLOR} />
+        <polygon points="10,48 20,48 15,57" fill={ARGO_COLOR} />
       </svg>
     </div>
   );
@@ -39,25 +48,22 @@ function GliderMarker({ selected }: { selected: boolean }) {
   return (
     <div
       style={{
-        width: 28,
-        height: 17,
-        borderRadius: 999,
-        background: '#FB923C',
-        border: '2px solid #9A4A12',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: selected
-          ? '0 0 0 4px rgba(251,146,60,0.25), 0 0 12px rgba(251,146,60,0.7)'
-          : '0 2px 6px rgba(0,0,0,0.30)',
+        width: 30,
+        height: 22,
+        opacity: selected ? 1.0 : 0.65,
+        transition: 'opacity 150ms ease, transform 150ms ease',
+        transform: selected ? 'scale(1.12)' : 'scale(1)',
+        cursor: 'pointer',
+        filter: selected
+          ? 'drop-shadow(0 0 8px rgba(251,146,60,0.8))'
+          : 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))',
       }}
     >
-      <svg width="19" height="12" viewBox="0 0 40 40">
-        <rect x="5" y="17" width="27" height="7" rx="3.5" fill="#FFF1D6" />
-        <polygon points="32,17 38,20.5 32,24" fill="#FFF1D6" />
-        <rect x="10" y="20" width="17" height="3" fill="#152235" />
-        <polygon points="18,20 8,7 12,7 23,20" fill="#152235" />
-        <polygon points="18,21 8,34 12,34 23,21" fill="#152235" />
+      <svg width="100%" height="100%" viewBox="0 0 40 40">
+        <rect x="5" y="17" width="27" height="7" rx="3.5" fill={GLIDER_COLOR} />
+        <polygon points="32,17 38,20.5 32,24" fill={GLIDER_COLOR} />
+        <polygon points="18,20 8,7 12,7 23,20" fill={GLIDER_COLOR} />
+        <polygon points="18,21 8,34 12,34 23,21" fill={GLIDER_COLOR} />
       </svg>
     </div>
   );
@@ -71,10 +77,6 @@ export function InstrumentMarker({
   onSelect,
 }: InstrumentMarkerProps) {
   const isSelected = selectedInstrumentId === id;
-  const hasSelection = selectedInstrumentId !== null;
-
-  const opacity = isSelected ? 1 : hasSelection ? 0.45 : 0.9;
-  const scale = isSelected ? 1.15 : 1;
 
   return (
     <group position={position}>
@@ -96,9 +98,7 @@ export function InstrumentMarker({
             background: 'transparent',
             padding: 0,
             cursor: 'pointer',
-            opacity,
-            transform: `scale(${scale})`,
-            transition: 'transform 180ms ease, opacity 180ms ease',
+            outline: 'none',
           }}
         >
           {type === 'ARGO' ? (

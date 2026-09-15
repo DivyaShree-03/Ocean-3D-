@@ -5,16 +5,18 @@ export interface ArgoFloat {
   platform_type?: string;
   latitude?: number;
   longitude?: number;
+  depth?: number;
   last_seen?: string;
 }
 
 export interface ArgoTrajectoryPoint {
-  platform_id: string;
+  platform_id?: string;
   cycle_number?: number;
   observation_time?: string;
   time?: string;
   latitude: number;
   longitude: number;
+  depth?: number;
 }
 
 export interface ArgoProfilePoint {
@@ -33,6 +35,7 @@ export interface ArgoMarker {
   type: 'ARGO';
   latitude: number;
   longitude: number;
+  depth?: number;
   cycleNumber?: number;
   time?: string;
 }

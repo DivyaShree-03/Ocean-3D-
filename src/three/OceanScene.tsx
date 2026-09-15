@@ -1,53 +1,124 @@
-import React from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import ModelFieldLayer from './ModelFieldLayer';
+import { OceanVolumeLayer } from './OceanVolumeLayer';
 import { GeographicLandLayer } from './GeographicLandLayer';
 import { CurrentLayer } from './CurrentLayer';
+import MultiDepthSliceLayer from './MultiDepthSliceLayer';
 import { ArgoLayer } from './ArgoLayer';
 import { GliderLayer } from './GliderLayer';
+import { Trajectory3DLayer } from './Trajectory3DLayer';
 import { useExplorerStore } from '../store/explorerStore';
-import { SCENE_BOUNDS } from '../utils/geoToScene';
+import { SCENE_BOUNDS, geoToScene } from '../utils/geoToScene';
+import { generateDemoOceanVolume } from '../data/demoOcean';
+import { buildGlider3DZigzag } from '../types/trajectoryUtils';
 import type { ArgoMarker } from '../services/argoService';
+import type { GliderMarker } from '../services/gliderService';
 import type { ModelField, ScalarVariable } from '../services/modelService';
+import type { VisualTrajectoryPoint } from '../types/trajectory';
 
 interface OceanSceneProps {
   resetKey?: number;
   argoMarkers?: ArgoMarker[];
+  gliderMarkers?: GliderMarker[];
   onSelectArgo?: (id: string) => void;
+  onSelectGlider?: (id: string) => void;
+  argoTrajectories?: Record<string, VisualTrajectoryPoint[]>;
+  gliderTrajectories?: Record<string, VisualTrajectoryPoint[]>;
+  selectedInstrumentId?: string | null;
   scalarField?: ModelField | null;
   uField?: ModelField | null;
   vField?: ModelField | null;
   variable?: ScalarVariable;
   selectedDepth?: number;
   verticalExaggeration?: number;
+  showMultiDepthSlices?: boolean;
+  demoTimeStep?: number;
+  onDepthAxisProjection?: (value: { top: number; bottom: number; left: number }) => void;
+}
+
+function DepthProjectionTracker({
+  verticalExaggeration,
+  onChange,
+}: {
+  verticalExaggeration: number;
+  onChange?: (value: { top: number; bottom: number; left: number }) => void;
+}) {
+  const { camera, size } = useThree();
+
+  useFrame(() => {
+    if (!onChange) return;
+
+    const [topX, topYWorld, topZ] = geoToScene(60.0, 0.0, 0, verticalExaggeration);
+    const [botX, botYWorld, botZ] = geoToScene(60.0, 0.0, 5500, verticalExaggeration);
+
+    const top3D = new THREE.Vector3(topX, topYWorld, topZ);
+    const bot3D = new THREE.Vector3(botX, botYWorld, botZ);
+
+    top3D.project(camera);
+    bot3D.project(camera);
+
+    const topY = (-top3D.y * 0.5 + 0.5) * size.height;
+    const botY = (-bot3D.y * 0.5 + 0.5) * size.height;
+    const leftX = (top3D.x * 0.5 + 0.5) * size.width;
+
+    onChange({
+      top: Math.min(topY, botY),
+      bottom: Math.max(topY, botY),
+      left: leftX,
+    });
+  });
+
+  return null;
 }
 
 export const OceanSceneContent: React.FC<{
   argoMarkers?: ArgoMarker[];
+  gliderMarkers?: GliderMarker[];
   onSelectArgo?: (id: string) => void;
+  onSelectGlider?: (id: string) => void;
+  argoTrajectories?: Record<string, VisualTrajectoryPoint[]>;
+  gliderTrajectories?: Record<string, VisualTrajectoryPoint[]>;
+  selectedInstrumentId?: string | null;
   scalarField?: ModelField | null;
   uField?: ModelField | null;
   vField?: ModelField | null;
   variable?: ScalarVariable;
   selectedDepth?: number;
   verticalExaggeration?: number;
+  showMultiDepthSlices?: boolean;
+  demoTimeStep?: number;
+  onDepthAxisProjection?: (value: { top: number; bottom: number; left: number }) => void;
 }> = ({
   argoMarkers,
+  gliderMarkers,
   onSelectArgo,
+  onSelectGlider,
+  argoTrajectories,
+  gliderTrajectories,
+  selectedInstrumentId,
   scalarField,
   uField,
   vField,
   variable = 'thetao',
   selectedDepth = 0,
   verticalExaggeration: customExaggeration,
+  showMultiDepthSlices = true,
+  demoTimeStep = 0,
+  onDepthAxisProjection,
 }) => {
   const opacity = useExplorerStore((state) => state.opacity);
   const storeExaggeration = useExplorerStore((state) => state.verticalExaggeration);
+  const depthMin = useExplorerStore((state) => state.depthMin);
+  const depthMax = useExplorerStore((state) => state.depthMax);
   const setDepthScreenRange = useExplorerStore((state) => state.setDepthScreenRange);
 
   const verticalExaggeration = customExaggeration ?? storeExaggeration;
+
+  // Generate 3D volume dataset once for water-column bounding volume context
+  const volumeData = useMemo(() => generateDemoOceanVolume(), []);
 
   // Compute volume scale dimensions
   const scaleX = SCENE_BOUNDS.VOLUME_SIZE.x;
@@ -68,6 +139,15 @@ export const OceanSceneContent: React.FC<{
     setDepthScreenRange({ top: topPixelY, bottom: botPixelY });
   });
 
+  // Calculate active 3D trajectories
+  const activeArgoTrajectory = selectedInstrumentId && argoTrajectories?.[selectedInstrumentId];
+  const activeGliderRawTrajectory = selectedInstrumentId && gliderTrajectories?.[selectedInstrumentId];
+
+  const activeGliderTrajectory = useMemo(() => {
+    if (!activeGliderRawTrajectory) return undefined;
+    return buildGlider3DZigzag(activeGliderRawTrajectory, 1000, 4);
+  }, [activeGliderRawTrajectory]);
+
   return (
     <>
       <color attach="background" args={['#0B1D33']} />
@@ -75,31 +155,82 @@ export const OceanSceneContent: React.FC<{
       <directionalLight position={[10, 24, 15]} intensity={1.3} />
       <directionalLight position={[-10, 15, -10]} intensity={0.4} />
 
+      {/* Track projected screen bounds of 3D cube for DepthAxis HUD overlay */}
+      <DepthProjectionTracker
+        verticalExaggeration={verticalExaggeration}
+        onChange={onDepthAxisProjection}
+      />
+
       {/* 3D Geographic Land Layer */}
       <GeographicLandLayer />
 
-      {/* Live Model Field Layer (Temperature / Salinity 2D Slice positioned at 3D physical selectedDepth) */}
-      <ModelFieldLayer
-        field={scalarField ?? null}
-        variable={variable}
-        opacity={opacity}
-        selectedDepth={selectedDepth}
+      {/* 3D Water Column Volume Container (Transparent 0-5500m Context Box) */}
+      <OceanVolumeLayer
+        volume={volumeData}
+        opacity={opacity * 0.35}
         verticalExaggeration={verticalExaggeration}
+        depthMin={depthMin}
+        depthMax={depthMax}
       />
 
-      {/* Surface/Depth Current Trajectory Layer (Positioned at 3D physical selectedDepth) */}
+      {/* Multi-Depth Stacked Slices (3D Ocean Body Cross-Section) */}
+      {showMultiDepthSlices ? (
+        <MultiDepthSliceLayer
+          variable={variable}
+          timeStep={demoTimeStep}
+          verticalExaggeration={verticalExaggeration}
+          opacity={opacity}
+          visible={true}
+        />
+      ) : (
+        /* Single Selected Depth Model Field Layer */
+        <ModelFieldLayer
+          field={scalarField ?? null}
+          variable={variable}
+          opacity={opacity}
+          selectedDepth={selectedDepth}
+          verticalExaggeration={verticalExaggeration}
+        />
+      )}
+
+      {/* Surface Current Trajectory Layer (Positioned at selectedDepth) */}
       <CurrentLayer
         uField={uField}
         vField={vField}
         selectedDepth={selectedDepth}
         verticalExaggeration={verticalExaggeration}
+        demoTimeStep={demoTimeStep}
       />
 
-      {/* Real Argo Float Layer (surface floats) */}
-      <ArgoLayer observations={argoMarkers} onSelect={onSelectArgo} />
+      {/* 3D Trajectory Line Ribbons (Cyan for Argo, Orange for Glider) */}
+      {activeArgoTrajectory && (
+        <Trajectory3DLayer
+          points={activeArgoTrajectory}
+          type="ARGO"
+          verticalExaggeration={verticalExaggeration}
+        />
+      )}
 
-      {/* Underwater Glider Layer */}
-      <GliderLayer />
+      {activeGliderTrajectory && (
+        <Trajectory3DLayer
+          points={activeGliderTrajectory}
+          type="GLIDER"
+          verticalExaggeration={verticalExaggeration}
+        />
+      )}
+
+      {/* Real / Animated Argo Float Layer */}
+      <ArgoLayer
+        observations={argoMarkers}
+        onSelect={onSelectArgo}
+        argoTrajectories={argoTrajectories}
+      />
+
+      {/* Live Underwater Glider Layer */}
+      <GliderLayer
+        observations={gliderMarkers}
+        onSelect={onSelectGlider}
+      />
 
       {/* Camera OrbitControls */}
       <OrbitControls
@@ -116,13 +247,21 @@ export const OceanSceneContent: React.FC<{
 export const OceanScene: React.FC<OceanSceneProps> = ({
   resetKey,
   argoMarkers,
+  gliderMarkers,
   onSelectArgo,
+  onSelectGlider,
+  argoTrajectories,
+  gliderTrajectories,
+  selectedInstrumentId,
   scalarField,
   uField,
   vField,
   variable,
   selectedDepth,
   verticalExaggeration,
+  showMultiDepthSlices,
+  demoTimeStep,
+  onDepthAxisProjection,
 }) => {
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#0B1D33]">
@@ -137,13 +276,21 @@ export const OceanScene: React.FC<OceanSceneProps> = ({
       >
         <OceanSceneContent
           argoMarkers={argoMarkers}
+          gliderMarkers={gliderMarkers}
           onSelectArgo={onSelectArgo}
+          onSelectGlider={onSelectGlider}
+          argoTrajectories={argoTrajectories}
+          gliderTrajectories={gliderTrajectories}
+          selectedInstrumentId={selectedInstrumentId}
           scalarField={scalarField}
           uField={uField}
           vField={vField}
           variable={variable}
           selectedDepth={selectedDepth}
           verticalExaggeration={verticalExaggeration}
+          showMultiDepthSlices={showMultiDepthSlices}
+          demoTimeStep={demoTimeStep}
+          onDepthAxisProjection={onDepthAxisProjection}
         />
       </Canvas>
     </div>

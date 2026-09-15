@@ -38,14 +38,11 @@ export default function ModelFieldLayer({
     const positions: number[] = [];
     const colors: number[] = [];
 
-    /**
-     * Stride 2 for optimal render performance; 1 for full resolution.
-     */
-    const stride = 2;
+    const stride = 1;
 
     const addVertex = (lon: number, lat: number, value: number) => {
       const [x, y, z] = geoToScene(lon, lat, selectedDepth, verticalExaggeration);
-      const yOffset = y + 0.015; // Tiny offset above slice level
+      const yOffset = y + 0.015;
 
       positions.push(x, yOffset, z);
 
@@ -60,34 +57,25 @@ export default function ModelFieldLayer({
         const v01 = values[i + stride]?.[j];
         const v11 = values[i + stride]?.[j + stride];
 
-        /**
-         * Null cells = land/masked.
-         * Do not create triangles across land or missing values.
-         */
-        if (
-          v00 == null ||
-          v10 == null ||
-          v01 == null ||
-          v11 == null
-        ) {
-          continue;
-        }
-
         const lat0 = latitudes[i];
         const lat1 = latitudes[i + stride];
 
         const lon0 = longitudes[j];
         const lon1 = longitudes[j + stride];
 
-        // Triangle 1
-        addVertex(lon0, lat0, v00);
-        addVertex(lon1, lat0, v10);
-        addVertex(lon0, lat1, v01);
+        // Triangle 1 (v00, v10, v01)
+        if (v00 != null && v10 != null && v01 != null) {
+          addVertex(lon0, lat0, v00);
+          addVertex(lon1, lat0, v10);
+          addVertex(lon0, lat1, v01);
+        }
 
-        // Triangle 2
-        addVertex(lon1, lat0, v10);
-        addVertex(lon1, lat1, v11);
-        addVertex(lon0, lat1, v01);
+        // Triangle 2 (v10, v11, v01)
+        if (v10 != null && v11 != null && v01 != null) {
+          addVertex(lon1, lat0, v10);
+          addVertex(lon1, lat1, v11);
+          addVertex(lon0, lat1, v01);
+        }
       }
     }
 
